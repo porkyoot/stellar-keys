@@ -490,7 +490,7 @@ public class KeyboardScreen extends Screen {
          return KeyboardRenderer.KeyRenderStyle.outline(
             category.fillColor(),
             KeyVisualStyle.keyAssignedFill(),
-            category.fillColor(),
+            KeyVisualStyle.keyAssignedText(),
             hovered
          );
       }
@@ -499,6 +499,40 @@ public class KeyboardScreen extends Screen {
       return KeyboardRenderer.KeyRenderStyle.standard(
          hovered ? KeyboardRenderer.KeySpriteVariant.UNUSED_HOVER : KeyboardRenderer.KeySpriteVariant.UNUSED
       );
+   }
+
+   private int boxFillColorForKey(KeyboardKey key) {
+      if (key == null) {
+         return KeyVisualStyle.boxFill();
+      }
+      int glfwKey = key.glfwKey;
+      if (this.bindingCache.hasDirectConflict(glfwKey, this.currentLayer)) {
+         return KeyVisualStyle.keyDirectConflictFill();
+      }
+      if (this.bindingCache.hasBinding(glfwKey, this.currentLayer)) {
+         KeyCategory category = this.keyCategoryForKey(key);
+         if (category.isCustomCategory()) {
+            return category.fillColor();
+         }
+      }
+      return KeyVisualStyle.boxFill();
+   }
+
+   private int boxTextColorForKey(KeyboardKey key) {
+      if (key == null) {
+         return KeyVisualStyle.boxText();
+      }
+      int glfwKey = key.glfwKey;
+      if (this.bindingCache.hasDirectConflict(glfwKey, this.currentLayer)) {
+         return KeyVisualStyle.keyDirectConflictText();
+      }
+      if (this.bindingCache.hasBinding(glfwKey, this.currentLayer)) {
+         KeyCategory category = this.keyCategoryForKey(key);
+         if (category.isCustomCategory()) {
+            return category.textColor();
+         }
+      }
+      return KeyVisualStyle.boxText();
    }
 
    private String legendCategoryIdForKey(KeyboardKey key) {
@@ -643,7 +677,7 @@ public class KeyboardScreen extends Screen {
                   category.name(),
                   category.fillColor(),
                   KeyVisualStyle.keyAssignedFill(),
-                  category.fillColor()
+                  KeyVisualStyle.keyAssignedText()
                )
             );
          }
@@ -1391,7 +1425,7 @@ public class KeyboardScreen extends Screen {
       for (ConnectorGeometry geometry : this.cachedConnectorGeometry) {
          BoxTextLayout layout = this.getFilteredBoxTextLayout(geometry.button.glfwKey, false);
          if (!layout.rows.isEmpty()) {
-            panelTasks.add(new KeyboardScreen.RendererPanelSpriteTask(layout.dimensions.width, layout.dimensions.height, false));
+            panelTasks.add(new KeyboardScreen.RendererPanelSpriteTask(layout.dimensions.width, layout.dimensions.height, this.boxFillColorForKey(geometry.button), false));
          }
       }
 
@@ -1974,6 +2008,8 @@ public class KeyboardScreen extends Screen {
                   this.deferredHoveredEntry.x,
                   this.deferredHoveredEntry.y,
                   this.deferredHoveredEntry.layout,
+                  this.deferredHoveredEntry.fillColor,
+                  this.deferredHoveredEntry.textColor,
                   this.deferredHoveredEntry.hovered,
                   this.deferredHoveredEntry.boxAlpha,
                   this.deferredHoveredEntry.textAlpha
@@ -2361,7 +2397,7 @@ public class KeyboardScreen extends Screen {
       if (plan != null && !plan.boxes.isEmpty()) {
          for (KeyboardScreen.StaticBoxEntry box : plan.boxes) {
             float alpha = this.legendAlphaForCategoryId(box.legendCategoryId);
-            renderer.drawDynamicBox(guiGraphics, box.x, box.y, box.layout, false, alpha, alpha);
+            renderer.drawDynamicBox(guiGraphics, box.x, box.y, box.layout, box.fillColor, box.textColor, false, alpha, alpha);
          }
       }
    }
@@ -2394,7 +2430,17 @@ public class KeyboardScreen extends Screen {
                if (!layout.rows.isEmpty()) {
                   KeyboardScreen.StaticBoxEntry placement = this.resolveBoxPlacement(geometry, layout);
                   float legendAlpha = this.legendAlphaForCategoryId(placement.legendCategoryId);
-                  renderer.drawDynamicBox(guiGraphics, placement.x, placement.y, layout, false, alpha * legendAlpha, alpha * legendAlpha);
+                  renderer.drawDynamicBox(
+                     guiGraphics,
+                     placement.x,
+                     placement.y,
+                     layout,
+                     placement.fillColor,
+                     placement.textColor,
+                     false,
+                     alpha * legendAlpha,
+                     alpha * legendAlpha
+                  );
                }
             }
          }
@@ -2779,7 +2825,12 @@ public class KeyboardScreen extends Screen {
             settledKeys.add(this.animationKey(geometry.button));
             settledBoxes.add(
                new KeyboardScreen.StaticBoxEntry(
-                  geometry.boxPos.boxX + geometry.nudgeX, geometry.boxPos.boxY + geometry.nudgeY, layout, this.legendCategoryIdForKey(geometry.button)
+                  geometry.boxPos.boxX + geometry.nudgeX,
+                  geometry.boxPos.boxY + geometry.nudgeY,
+                  layout,
+                  this.legendCategoryIdForKey(geometry.button),
+                  this.boxFillColorForKey(geometry.button),
+                  this.boxTextColorForKey(geometry.button)
                )
             );
          }
@@ -3006,12 +3057,23 @@ public class KeyboardScreen extends Screen {
             }
 
             float textAlpha = baseTextAlpha * textHoverAlpha * legendAlpha;
+            int boxFillColor = placement.fillColor;
+            int boxTextColor = placement.textColor;
             if (hovered) {
-               hoveredEntry = new KeyboardScreen.DynamicBoxEntry(drawX, drawY, layout, true, boxAlpha * legendAlpha, textAlpha);
+               hoveredEntry = new KeyboardScreen.DynamicBoxEntry(
+                  drawX,
+                  drawY,
+                  layout,
+                  true,
+                  boxAlpha * legendAlpha,
+                  textAlpha,
+                  boxFillColor,
+                  boxTextColor
+               );
             } else if (hoverProgress > 0.01F) {
-               renderer.drawDynamicBox(guiGraphics, drawX, drawY, layout, false, boxAlpha * legendAlpha, textAlpha);
+               renderer.drawDynamicBox(guiGraphics, drawX, drawY, layout, boxFillColor, boxTextColor, false, boxAlpha * legendAlpha, textAlpha);
             } else {
-               renderer.drawDynamicBox(guiGraphics, drawX, drawY, layout, false, boxAlpha * legendAlpha, textAlpha);
+               renderer.drawDynamicBox(guiGraphics, drawX, drawY, layout, boxFillColor, boxTextColor, false, boxAlpha * legendAlpha, textAlpha);
             }
          }
       }
@@ -3994,7 +4056,14 @@ public class KeyboardScreen extends Screen {
       int maxY = scaledMaxY - layout.dimensions.height;
       x = maxX < scaledMinX ? scaledMinX : Math.max(scaledMinX, Math.min(x, maxX));
       y = maxY < scaledMinY ? scaledMinY : Math.max(scaledMinY, Math.min(y, maxY));
-      return new KeyboardScreen.StaticBoxEntry(x, y, layout, this.legendCategoryIdForKey(geometry.button));
+      return new KeyboardScreen.StaticBoxEntry(
+         x,
+         y,
+         layout,
+         this.legendCategoryIdForKey(geometry.button),
+         this.boxFillColorForKey(geometry.button),
+         this.boxTextColorForKey(geometry.button)
+      );
    }
 
    public boolean isPauseScreen() {
@@ -4902,14 +4971,18 @@ public class KeyboardScreen extends Screen {
       final boolean hovered;
       final float boxAlpha;
       final float textAlpha;
+      final int fillColor;
+      final int textColor;
 
-      DynamicBoxEntry(int x, int y, BoxTextLayout layout, boolean hovered, float boxAlpha, float textAlpha) {
+      DynamicBoxEntry(int x, int y, BoxTextLayout layout, boolean hovered, float boxAlpha, float textAlpha, int fillColor, int textColor) {
          this.x = x;
          this.y = y;
          this.layout = layout;
          this.hovered = hovered;
          this.boxAlpha = boxAlpha;
          this.textAlpha = textAlpha;
+         this.fillColor = fillColor;
+         this.textColor = textColor;
       }
    }
 
@@ -5248,11 +5321,13 @@ public class KeyboardScreen extends Screen {
    private static final class RendererPanelSpriteTask {
       final int width;
       final int height;
+      final int fillColor;
       final boolean hovered;
 
-      private RendererPanelSpriteTask(int width, int height, boolean hovered) {
+      private RendererPanelSpriteTask(int width, int height, int fillColor, boolean hovered) {
          this.width = width;
          this.height = height;
+         this.fillColor = fillColor;
          this.hovered = hovered;
       }
 
@@ -5263,7 +5338,7 @@ public class KeyboardScreen extends Screen {
          } else {
             return !(other instanceof KeyboardScreen.RendererPanelSpriteTask that)
                ? false
-               : this.width == that.width && this.height == that.height && this.hovered == that.hovered;
+               : this.width == that.width && this.height == that.height && this.fillColor == that.fillColor && this.hovered == that.hovered;
          }
       }
 
@@ -5271,6 +5346,7 @@ public class KeyboardScreen extends Screen {
       public int hashCode() {
          int result = this.width;
          result = 31 * result + this.height;
+         result = 31 * result + this.fillColor;
          return 31 * result + (this.hovered ? 1 : 0);
       }
    }
@@ -5336,7 +5412,7 @@ public class KeyboardScreen extends Screen {
                remaining--;
             } else if (this.panelIndex < this.panelTasks.size()) {
                KeyboardScreen.RendererPanelSpriteTask task = this.panelTasks.get(this.panelIndex++);
-               renderer.prewarmPanelSprite(task.width, task.height, task.hovered);
+               renderer.prewarmPanelSprite(task.width, task.height, task.fillColor, task.hovered);
                remaining--;
             } else if (this.labelIndex < this.labelTasks.size()) {
                KeyboardScreen.RendererLabelTask task = this.labelTasks.get(this.labelIndex++);
@@ -5402,12 +5478,16 @@ public class KeyboardScreen extends Screen {
       final int y;
       final BoxTextLayout layout;
       final String legendCategoryId;
+      final int fillColor;
+      final int textColor;
 
-      StaticBoxEntry(int x, int y, BoxTextLayout layout, String legendCategoryId) {
+      StaticBoxEntry(int x, int y, BoxTextLayout layout, String legendCategoryId, int fillColor, int textColor) {
          this.x = x;
          this.y = y;
          this.layout = layout;
          this.legendCategoryId = legendCategoryId;
+         this.fillColor = fillColor;
+         this.textColor = textColor;
       }
    }
 

@@ -253,32 +253,55 @@ public final class KeyboardRenderer implements AutoCloseable {
       }
    }
 
-   public void drawDynamicBox(GuiGraphicsExtractor guiGraphics, int x, int y, BoxTextLayout layout, boolean hovered, float alpha, float textAlpha) {
+   public void drawDynamicBox(
+      GuiGraphicsExtractor guiGraphics,
+      int x,
+      int y,
+      BoxTextLayout layout,
+      int boxFillColor,
+      int boxTextColor,
+      boolean hovered,
+      float alpha,
+      float textAlpha
+   ) {
       if (!(alpha <= 0.01F)) {
          int width = layout.dimensions.width;
          int height = layout.dimensions.height;
-         int fillColor = hovered ? KeyVisualStyle.boxHoverFill() : KeyVisualStyle.boxFill();
+         int defaultFill = hovered ? KeyVisualStyle.boxHoverFill() : KeyVisualStyle.boxFill();
+         int fillColor = boxFillColor != 0 ? (hovered ? OverlayRenderHelper.lighten(boxFillColor, 0.15F) : boxFillColor) : defaultFill;
          guiGraphics.pose().pushMatrix();
 
-         guiGraphics.fill(x, y, x + width, y + height, OverlayRenderHelper.withAlpha(fillColor, 1.0F));
-         this.panelSprite(width, height, hovered).blit(guiGraphics, x, y, 1.0F);
+         guiGraphics.fill(x, y, x + width, y + height, OverlayRenderHelper.withAlpha(fillColor, alpha));
+         this.panelSprite(width, height, boxFillColor, hovered).blit(guiGraphics, x, y, alpha);
          if (!layout.rows.isEmpty() && textAlpha > 0.01F) {
             int textPad = 3 * this.pixelScale;
 
             for (BoxTextRow row : layout.rows) {
+               int rowColor = row.color;
+               if (boxTextColor != 0) {
+                  if (row.kind == BoxTextRow.Kind.TEXT && row.color == KeyVisualStyle.boxText()) {
+                     rowColor = boxTextColor;
+                  } else if (row.kind == BoxTextRow.Kind.RIGHT_TEXT) {
+                     rowColor = boxTextColor;
+                  } else if (row.kind == BoxTextRow.Kind.TEXT && row.color == KeyVisualStyle.boxSourceText()) {
+                     rowColor = OverlayRenderHelper.mixColor(boxTextColor, fillColor, 0.25F);
+                  } else if (row.kind == BoxTextRow.Kind.SEPARATOR) {
+                     rowColor = OverlayRenderHelper.mixColor(boxTextColor, fillColor, 0.4F);
+                  }
+               }
                if (row.kind == BoxTextRow.Kind.SEPARATOR) {
-                  this.drawBoxSeparator(guiGraphics, x, y, width, row, textAlpha);
+                  this.drawBoxSeparator(guiGraphics, x, y, width, row, fillColor, textAlpha);
                } else if (row.kind == BoxTextRow.Kind.RIGHT_TEXT) {
                   guiGraphics.pose().pushMatrix();
                   guiGraphics.pose().translate((float)(x + width - textPad), (float)(y + row.yOffset));
                   guiGraphics.pose().scale(row.scale, row.scale);
-                  guiGraphics.text(this.font, row.text, -this.font.width(row.text), 0, OverlayRenderHelper.withAlpha(row.color, textAlpha), false);
+                  guiGraphics.text(this.font, row.text, -this.font.width(row.text), 0, OverlayRenderHelper.withAlpha(rowColor, textAlpha), false);
                   guiGraphics.pose().popMatrix();
                } else {
                   guiGraphics.pose().pushMatrix();
                   guiGraphics.pose().translate((float)x + (float)width / 2.0F, (float)(y + row.yOffset));
                   guiGraphics.pose().scale(row.scale, row.scale);
-                  guiGraphics.centeredText(this.font, row.text, 0, 0, OverlayRenderHelper.withAlpha(row.color, textAlpha));
+                  guiGraphics.centeredText(this.font, row.text, 0, 0, OverlayRenderHelper.withAlpha(rowColor, textAlpha));
                   guiGraphics.pose().popMatrix();
                }
             }
@@ -288,13 +311,18 @@ public final class KeyboardRenderer implements AutoCloseable {
       }
    }
 
-   private void drawBoxSeparator(GuiGraphicsExtractor guiGraphics, int x, int y, int width, BoxTextRow row, float alpha) {
+   public void drawDynamicBox(GuiGraphicsExtractor guiGraphics, int x, int y, BoxTextLayout layout, boolean hovered, float alpha, float textAlpha) {
+      this.drawDynamicBox(guiGraphics, x, y, layout, 0, 0, hovered, alpha, textAlpha);
+   }
+
+   private void drawBoxSeparator(GuiGraphicsExtractor guiGraphics, int x, int y, int width, BoxTextRow row, int fillColor, float alpha) {
       int availableWidth = Math.max(10 * this.pixelScale, width - 10 * this.pixelScale);
       int centerX = x + width / 2;
       int lineY = y + row.yOffset + Math.max(0, row.height - this.pixelScale) / 2;
       int halfWidth = availableWidth / 2;
-      int centerColor = OverlayRenderHelper.darken(KeyVisualStyle.boxFill(), 0.2F);
-      int edgeColor = OverlayRenderHelper.darken(KeyVisualStyle.boxFill(), 0.1F);
+      int baseFill = fillColor != 0 ? fillColor : KeyVisualStyle.boxFill();
+      int centerColor = OverlayRenderHelper.darken(baseFill, 0.2F);
+      int edgeColor = OverlayRenderHelper.darken(baseFill, 0.1F);
       float sepAlpha = alpha * 0.9F;
       int bands = Math.max(2, Math.min(8, halfWidth / (2 * this.pixelScale)));
       int leftEdge = centerX - halfWidth;
@@ -384,8 +412,12 @@ public final class KeyboardRenderer implements AutoCloseable {
       this.keySprite(width, height, KeyboardKeyShape.rectangle(), style);
    }
 
+   void prewarmPanelSprite(int width, int height, int fillColor, boolean hovered) {
+      this.panelSprite(width, height, fillColor, hovered);
+   }
+
    void prewarmPanelSprite(int width, int height, boolean hovered) {
-      this.panelSprite(width, height, hovered);
+      this.prewarmPanelSprite(width, height, 0, hovered);
    }
 
    void prewarmCenteredLabel(String label, int width, int height) {
@@ -527,8 +559,12 @@ public final class KeyboardRenderer implements AutoCloseable {
       return this.keySprites.computeIfAbsent(new KeyboardRenderer.KeySpriteKey(width, height, shape, style), this::buildKeySprite);
    }
 
+   private KeyboardRenderer.SpriteTexture panelSprite(int width, int height, int fillColor, boolean hovered) {
+      return this.panelSprites.computeIfAbsent(new KeyboardRenderer.PanelSpriteKey(width, height, fillColor, hovered), this::buildPanelSprite);
+   }
+
    private KeyboardRenderer.SpriteTexture panelSprite(int width, int height, boolean hovered) {
-      return this.panelSprites.computeIfAbsent(new KeyboardRenderer.PanelSpriteKey(width, height, hovered), this::buildPanelSprite);
+      return this.panelSprite(width, height, 0, hovered);
    }
 
    private KeyboardRenderer.SpriteTexture housingSprite(int width, int height) {
@@ -678,8 +714,10 @@ public final class KeyboardRenderer implements AutoCloseable {
       int spriteWidth = key.width + padding * 2;
       int spriteHeight = key.height + padding * 2;
       NativeImage image = new NativeImage(spriteWidth, spriteHeight, true);
-      int fillColor = key.hovered ? KeyVisualStyle.boxHoverFill() : KeyVisualStyle.boxFill();
-      int borderColor = key.hovered ? KeyVisualStyle.boxHoverBorder() : KeyVisualStyle.boxBorder();
+      int defaultFill = key.hovered ? KeyVisualStyle.boxHoverFill() : KeyVisualStyle.boxFill();
+      int defaultBorder = key.hovered ? KeyVisualStyle.boxHoverBorder() : KeyVisualStyle.boxBorder();
+      int fillColor = key.fillColor != 0 ? (key.hovered ? OverlayRenderHelper.lighten(key.fillColor, 0.15F) : key.fillColor) : defaultFill;
+      int borderColor = key.fillColor != 0 ? OverlayRenderHelper.darken(fillColor, 0.25F) : defaultBorder;
       int bottomBorderColor = OverlayRenderHelper.darken(borderColor, 0.1F);
       int topColor = OverlayRenderHelper.lighten(fillColor, 0.09F);
       int wallColor = OverlayRenderHelper.darken(fillColor, 0.14F);
@@ -1282,12 +1320,18 @@ public final class KeyboardRenderer implements AutoCloseable {
    private static final class PanelSpriteKey {
       final int width;
       final int height;
+      final int fillColor;
       final boolean hovered;
 
-      PanelSpriteKey(int width, int height, boolean hovered) {
+      PanelSpriteKey(int width, int height, int fillColor, boolean hovered) {
          this.width = width;
          this.height = height;
+         this.fillColor = fillColor;
          this.hovered = hovered;
+      }
+
+      PanelSpriteKey(int width, int height, boolean hovered) {
+         this(width, height, 0, hovered);
       }
 
       @Override
@@ -1297,7 +1341,7 @@ public final class KeyboardRenderer implements AutoCloseable {
          } else {
             return !(other instanceof KeyboardRenderer.PanelSpriteKey that)
                ? false
-               : this.width == that.width && this.height == that.height && this.hovered == that.hovered;
+               : this.width == that.width && this.height == that.height && this.fillColor == that.fillColor && this.hovered == that.hovered;
          }
       }
 
@@ -1305,6 +1349,7 @@ public final class KeyboardRenderer implements AutoCloseable {
       public int hashCode() {
          int result = this.width;
          result = 31 * result + this.height;
+         result = 31 * result + this.fillColor;
          return 31 * result + (this.hovered ? 1 : 0);
       }
    }

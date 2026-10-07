@@ -33,14 +33,23 @@ class ConflictAndCategorySpec : FunSpec({
         hoveredStyle.fillColor() shouldBe OverlayRenderHelper.lighten(assignedFill, 0.22F)
         hoveredStyle.textColor() shouldBe OverlayRenderHelper.lighten(assignedText, 0.22F)
 
-        // Key labels colored according to category
-        val categoryStyle = KeyboardRenderer.KeyRenderStyle.outline(emerald, assignedFill, emerald, false)
-        categoryStyle.outlineColor() shouldBe emerald
-        categoryStyle.textColor() shouldBe emerald
+        // Keycap style uses category color for outline, while keycap text remains standard assignedText
+        val categoryKeyStyle = KeyboardRenderer.KeyRenderStyle.outline(emerald, assignedFill, assignedText, false)
+        categoryKeyStyle.outlineColor() shouldBe emerald
+        categoryKeyStyle.fillColor() shouldBe assignedFill
+        categoryKeyStyle.textColor() shouldBe assignedText
 
-        val hoveredCategoryStyle = KeyboardRenderer.KeyRenderStyle.outline(emerald, assignedFill, emerald, true)
-        hoveredCategoryStyle.outlineColor() shouldBe OverlayRenderHelper.lighten(emerald, 0.22F)
-        hoveredCategoryStyle.textColor() shouldBe OverlayRenderHelper.lighten(emerald, 0.22F)
+        val hoveredCategoryKeyStyle = KeyboardRenderer.KeyRenderStyle.outline(emerald, assignedFill, assignedText, true)
+        hoveredCategoryKeyStyle.outlineColor() shouldBe OverlayRenderHelper.lighten(emerald, 0.22F)
+        hoveredCategoryKeyStyle.fillColor() shouldBe OverlayRenderHelper.lighten(assignedFill, 0.22F)
+        hoveredCategoryKeyStyle.textColor() shouldBe OverlayRenderHelper.lighten(assignedText, 0.22F)
+    }
+
+    test("Action label background and text colors match category") {
+        val movementCat = KeybindAtlasClientConfig.findOrCreateCategory("movement", "Movement")
+        movementCat.fillColor() shouldBe -14_704_819
+        // High contrast text auto-calculated for emerald fill
+        movementCat.textColor() shouldBe -1 // White text on dark emerald
     }
 
     test("KeybindAtlasClientConfig should unify categories via findOrCreateCategory") {
