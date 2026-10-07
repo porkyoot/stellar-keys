@@ -13,12 +13,14 @@ import java.util.Map.Entry;
 
 public final class KeybindAtlasClientConfig {
    private static KeybindAtlasClientConfig.Backend backend = new KeybindAtlasClientConfig.InMemoryBackend();
+   private static volatile List<KeyCategory> cachedCustomCategories = null;
 
    private KeybindAtlasClientConfig() {
    }
 
    public static void install(KeybindAtlasClientConfig.Backend backend) {
       KeybindAtlasClientConfig.backend = Objects.requireNonNull(backend);
+      cachedCustomCategories = null;
    }
 
    public static int defaultPixelScale() {
@@ -71,6 +73,10 @@ public final class KeybindAtlasClientConfig {
    }
 
    public static List<KeyCategory> customCategories() {
+      List<KeyCategory> cached = cachedCustomCategories;
+      if (cached != null) {
+         return cached;
+      }
       List<KeyCategory> categories = new ArrayList<>();
       LinkedHashSet<String> seenIds = new LinkedHashSet<>();
 
@@ -81,7 +87,15 @@ public final class KeybindAtlasClientConfig {
          }
       }
 
-      return categories.isEmpty() ? KeyCategory.defaultCustomCategories() : categories;
+      for (KeyCategory def : KeyCategory.defaultCustomCategories()) {
+         if (seenIds.add(def.id())) {
+            categories.add(def);
+         }
+      }
+
+      cached = List.copyOf(categories);
+      cachedCustomCategories = cached;
+      return cached;
    }
 
    public static List<KeyCategory> availableCategories() {
@@ -629,6 +643,7 @@ public final class KeybindAtlasClientConfig {
          }
       }
 
+      cachedCustomCategories = null;
       backend.setCustomCategories(encoded);
    }
 

@@ -325,7 +325,8 @@ public final class KeyCategoryPanel {
                guiGraphics.pose().pushMatrix();
                guiGraphics.pose().translate((float)((float)this.sx(textX)), (float)((float)this.sy(rowY + 2)));
                guiGraphics.pose().scale((float)((float)this.pixelScale * 0.75F), (float)((float)this.pixelScale * 0.75F));
-               guiGraphics.text(font, displayName, 0, 0, OverlayRenderHelper.withAlpha(KeyVisualStyle.boxText(), alpha), false);
+               int nameColor = (selected || hovered) ? OverlayRenderHelper.lighten(category.fillColor(), 0.22F) : category.fillColor();
+               guiGraphics.text(font, displayName, 0, 0, OverlayRenderHelper.withAlpha(nameColor, alpha), false);
                guiGraphics.pose().popMatrix();
                guiGraphics.pose().pushMatrix();
                guiGraphics.pose().translate((float)((float)this.sx(textX)), (float)((float)this.sy(rowY + 10)));

@@ -50,6 +50,14 @@ class ConflictAndCategorySpec : FunSpec({
         KeybindAtlasClientConfig.findCustomCategory("movement") shouldBe movementCat
     }
 
+    test("KeybindAtlasClientConfig customCategories should cache and include all default categories") {
+        val cats1 = KeybindAtlasClientConfig.customCategories()
+        val cats2 = KeybindAtlasClientConfig.customCategories()
+        (cats1 === cats2) shouldBe true
+        cats1.any { it.id() == "gameplay" } shouldBe true
+        cats1.any { it.id() == "inventory" } shouldBe true
+    }
+
     test("KeyRenderStyle fullFill for conflicts should have no custom outline") {
         val conflictFill = KeyVisualStyle.keyDirectConflictFill()
         val conflictText = KeyVisualStyle.keyDirectConflictText()

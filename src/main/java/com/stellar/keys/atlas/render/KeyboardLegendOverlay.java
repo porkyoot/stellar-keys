@@ -261,7 +261,9 @@ final class KeyboardLegendOverlay {
 
             renderer.drawLegendKey(guiGraphics, this.sx(rowX), this.sy(sampleY), 8 * this.pixelScale, 8 * this.pixelScale, entry.sampleLabel, entry.style);
             int swatchColor = entry.style.hasOutline() ? entry.style.outlineColor() : entry.style.fillColor();
-            int textColor = rowHovered ? OverlayRenderHelper.mixColor(KeyVisualStyle.boxText(), swatchColor, 0.45F) : KeyVisualStyle.boxText();
+            int textColor = swatchColor != 0
+               ? (rowHovered ? OverlayRenderHelper.lighten(swatchColor, 0.22F) : swatchColor)
+               : (rowHovered ? KeyVisualStyle.keyHoverText() : KeyVisualStyle.boxText());
             this.drawLabel(guiGraphics, font, entry.name(), this.sx(labelX), this.sy(textY), textColor);
          }
       }
