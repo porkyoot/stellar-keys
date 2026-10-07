@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "com.stellar.keys.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ControlsScreenMixin",
+    "KeyMappingAccessor",
+    "MinecraftTickMixin",
+    "OptionsSubScreenAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "quilt_loader": {
+    "group": "com.stellar",
+    "id": "stellar_keys",
+    "version": "1.0.0",
+    "metadata": {
+      "name": "Stellar Keys",
+      "description": "Visual keybinding atlas and overlay for managing controls",
+      "icon": "assets/stellar_keys/icon.png"
+    },
+    "intermediate_mappings": "net.fabricmc:intermediary",
+    "entrypoints": {
+      "client": {
+        "adapter": "kotlin",
+        "value": "com.stellar.keys.StellarKeysMod"
+      },
+      "modmenu": {
+        "adapter": "kotlin",
+        "value": "com.stellar.keys.config.StellarKeysModMenu"
+      }
+    },
+    "depends": [
+      {
+        "id": "modmenu",
+        "versions": "*",
+        "optional": true
+      }
+    ]
+  },
+  "mixin": "stellar_keys.mixins.json"
+}
